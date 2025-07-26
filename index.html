@@ -1,0 +1,266 @@
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>每日收付款紀錄 - Firestore</title>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    input, select { margin: 0.5rem; padding: 0.4rem; }
+    table { border-collapse: collapse; margin-top: 2rem; width: 100%; }
+    th, td { border: 1px solid #aaa; padding: 0.5rem; text-align: center; }
+  </style>
+</head>
+<body>
+
+  <h2>📒 每日收付款紀錄 (Firestore 雲端版)</h2>
+
+  <label>日期：
+    <input type="date" id="date" value="">
+  </label>
+  <label>類型：
+    <select id="type">
+      <option value="收入">收入</option>
+      <option value="支出">支出</option>
+    </select>
+  </label>
+  <label>金額：
+    <input type="number" id="amount" placeholder="請輸入金額">
+  </label>
+  <label>類別：
+    <input type="text" id="category" placeholder="分類">
+  </label>
+  <label>備註：
+    <input type="text" id="note" placeholder="備註">
+  </label>
+  <button onclick="submitData()">儲存</button>
+  <button onclick="fetchData()">重新整理</button>
+
+  <h3>☁️ 雲端紀錄明細</h3>
+  <button onclick="deleteSelected()">🗑️ 刪除選取</button>
+<label>起日:<input type="date" id="startDate"></label>
+<label>迄日:<input type="date" id="endDate"></label>
+<button onclick="exportCSV()">⬇️ 匯出區間 CSV</button>
+<table id="recordTable">
+    <thead>
+      <tr>
+    <th><input type="checkbox" id="selectAll" onclick="toggleAll(this)"></th>
+    <th>日期</th><th>類型</th><th>金額</th><th>類別</th><th>備註</th>
+  </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js">
+    function toggleAll(el) {
+      document.querySelectorAll(".rowCheck").forEach(chk => chk.checked = el.checked);
+    }
+
+    function deleteSelected() {
+      const checked = [...document.querySelectorAll(".rowCheck:checked")];
+      if (checked.length === 0) return alert("請先選擇要刪除的資料");
+      if (!confirm("確定要刪除選取的資料嗎？")) return;
+
+      const batch = db.batch();
+      checked.forEach(chk => {
+        const id = chk.getAttribute("data-id");
+        const ref = db.collection("daily_cash").doc(id);
+        batch.delete(ref);
+      });
+
+      batch.commit().then(() => {
+        alert("✅ 已刪除");
+        fetchData();
+      });
+    }
+
+    function exportCSV() {
+      const start = document.getElementById("startDate").value;
+      const end = document.getElementById("endDate").value;
+      if (!start || !end) return alert("請選擇起日與迄日");
+
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+      endDate.setDate(endDate.getDate() + 1); // include end day
+
+      db.collection("daily_cash").orderBy("createdAt", "desc").get().then(snapshot => {
+        const now = new Date();
+        const month = now.toISOString().slice(0, 7); // yyyy-mm
+        const rows = [["日期", "類型", "金額", "類別", "備註"]];
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          const dDate = new Date(d.日期); if (dDate >= startDate && dDate < endDate) {
+            rows.push([d.日期, d.類型, d.金額, d.類別, d.備註]);
+          }
+        });
+
+        const csv = "\ufeff" + rows.map(r => r.join(",")).join("\n");
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `daily_cash_${month}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+    }
+  </script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js">
+    function toggleAll(el) {
+      document.querySelectorAll(".rowCheck").forEach(chk => chk.checked = el.checked);
+    }
+
+    function deleteSelected() {
+      const checked = [...document.querySelectorAll(".rowCheck:checked")];
+      if (checked.length === 0) return alert("請先選擇要刪除的資料");
+      if (!confirm("確定要刪除選取的資料嗎？")) return;
+
+      const batch = db.batch();
+      checked.forEach(chk => {
+        const id = chk.getAttribute("data-id");
+        const ref = db.collection("daily_cash").doc(id);
+        batch.delete(ref);
+      });
+
+      batch.commit().then(() => {
+        alert("✅ 已刪除");
+        fetchData();
+      });
+    }
+
+    function exportCSV() {
+      const start = document.getElementById("startDate").value;
+      const end = document.getElementById("endDate").value;
+      if (!start || !end) return alert("請選擇起日與迄日");
+
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+      endDate.setDate(endDate.getDate() + 1); // include end day
+
+      db.collection("daily_cash").orderBy("createdAt", "desc").get().then(snapshot => {
+        const now = new Date();
+        const month = now.toISOString().slice(0, 7); // yyyy-mm
+        const rows = [["日期", "類型", "金額", "類別", "備註"]];
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          const dDate = new Date(d.日期); if (dDate >= startDate && dDate < endDate) {
+            rows.push([d.日期, d.類型, d.金額, d.類別, d.備註]);
+          }
+        });
+
+        const csv = "\ufeff" + rows.map(r => r.join(",")).join("\n");
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `daily_cash_${month}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+    }
+  </script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAYmv1mt2QV0Ex0J1PlASfZjA3bdBvIJws",
+      authDomain: "haishang-a09c3.firebaseapp.com",
+      projectId: "haishang-a09c3",
+      storageBucket: "haishang-a09c3.firebasestorage.app",
+      messagingSenderId: "457535470987",
+      appId: "1:457535470987:web:c94320eb296696e132838e"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    document.getElementById('date').value = new Date().toISOString().slice(0, 10);
+
+    function submitData() {
+      const data = {
+        日期: document.getElementById('date').value,
+        類型: document.getElementById('type').value,
+        金額: parseInt(document.getElementById('amount').value),
+        類別: document.getElementById('category').value,
+        備註: document.getElementById('note').value,
+        createdAt: new Date()
+      };
+
+      db.collection("daily_cash").add(data).then(() => {
+        alert("✅ 儲存成功！");
+        fetchData();
+      }).catch((err) => {
+        alert("❌ 錯誤：" + err.message);
+      });
+    }
+
+    function fetchData() {
+      db.collection("daily_cash").orderBy("createdAt", "desc").get().then((querySnapshot) => {
+        const tbody = document.querySelector("#recordTable tbody");
+        tbody.innerHTML = '';
+        querySnapshot.forEach((doc) => {
+          const row = doc.data();
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+    <td><input type="checkbox" class="rowCheck" data-id="${doc.id}"></td>
+    <td>${row.日期}</td><td>${row.類型}</td><td>${row.金額}</td><td>${row.類別}</td><td>${row.備註}</td>
+  `;
+          tbody.appendChild(tr);
+        });
+      });
+    }
+
+    fetchData();
+  
+    function toggleAll(el) {
+      document.querySelectorAll(".rowCheck").forEach(chk => chk.checked = el.checked);
+    }
+
+    function deleteSelected() {
+      const checked = [...document.querySelectorAll(".rowCheck:checked")];
+      if (checked.length === 0) return alert("請先選擇要刪除的資料");
+      if (!confirm("確定要刪除選取的資料嗎？")) return;
+
+      const batch = db.batch();
+      checked.forEach(chk => {
+        const id = chk.getAttribute("data-id");
+        const ref = db.collection("daily_cash").doc(id);
+        batch.delete(ref);
+      });
+
+      batch.commit().then(() => {
+        alert("✅ 已刪除");
+        fetchData();
+      });
+    }
+
+    function exportCSV() {
+      const start = document.getElementById("startDate").value;
+      const end = document.getElementById("endDate").value;
+      if (!start || !end) return alert("請選擇起日與迄日");
+
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+      endDate.setDate(endDate.getDate() + 1); // include end day
+
+      db.collection("daily_cash").orderBy("createdAt", "desc").get().then(snapshot => {
+        const now = new Date();
+        const month = now.toISOString().slice(0, 7); // yyyy-mm
+        const rows = [["日期", "類型", "金額", "類別", "備註"]];
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          const dDate = new Date(d.日期); if (dDate >= startDate && dDate < endDate) {
+            rows.push([d.日期, d.類型, d.金額, d.類別, d.備註]);
+          }
+        });
+
+        const csv = "\ufeff" + rows.map(r => r.join(",")).join("\n");
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `daily_cash_${month}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+    }
+  </script>
+</body>
+</html>
